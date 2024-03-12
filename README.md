@@ -1,1 +1,3 @@
 # DUMB TUTORIAL
+
+## Instructor: Retarded 
