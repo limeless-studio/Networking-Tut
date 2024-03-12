@@ -1,33 +1,48 @@
 using System;
-using Core.Attributes;
-using UnityEngine;
 using Mirror;
 using Steamworks;
+using UnityEngine;
+using Core.Attributes;
 using UnityEngine.SceneManagement;
 
-namespace Session_1.Scripts
+namespace Session_2.Scripts.Networking
 {
+    /*
+     * Lobby Manager:
+     *  - Create Lobbies.
+     *  - Join Lobbies.
+     *  - Query Lobbies.
+     */
+    
+    /*
+     * {
+     *  "key": "value"
+     * }
+     */
+    
     public class SteamLobbyManager : MonoBehaviour
     {
         public static SteamLobbyManager Instance;
-        private const string HostAddressKey = "HostAddress";
-        
-        private NetworkManager _networkManager;
 
+        // Events
         public event Action<LobbyCreated_t> onLobbyCreated;
         public event Action<LobbyEnter_t> onLobbyEntered;
         
         // Callbacks
         protected Callback<LobbyCreated_t> LobbyCreated;
-        protected Callback<GameLobbyJoinRequested_t> LobbyJoinRequested;
         protected Callback<LobbyEnter_t> LobbyEntered;
-
+        
+        // vars
         public ulong lobbyId;
+        private const string HostAddress = "HostAdress";
+        private NetworkManager _networkManager;
         
         private void Awake()
         {
-            Debug.Log("GG");
-            if (Instance == null) Instance = this;
+            if (!Instance)
+            {
+                Instance = this;
+            }
             else
             {
                 Destroy(gameObject);
@@ -44,63 +59,56 @@ namespace Session_1.Scripts
                 SceneManager.LoadScene(0);
                 return;
             }
-            
+
             _networkManager = GetComponent<NetworkManager>();
+
             LobbyCreated = Callback<LobbyCreated_t>.Create(OnLobbyCreated);
-            LobbyJoinRequested = Callback<GameLobbyJoinRequested_t>.Create(OnLobbyJoinRequested);
-            LobbyEntered = Callback<LobbyEnter_t>.Create(OnLobbyEntered);   
+            LobbyEntered = Callback<LobbyEnter_t>.Create(OnLobbyEntered);
         }
 
         [Button("Create Lobby")]
         public void CreateLobby()
         {
-            SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypePublic, _networkManager.maxConnections);
+            SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypePublic, 2);
         }
 
-        public void JoinLobby(ulong lobbyId)
+        public void JoinLobby(ulong lobby)
         {
-            SteamMatchmaking.JoinLobby(new CSteamID(lobbyId));
+            SteamMatchmaking.JoinLobby(new CSteamID(lobby));
         }
-
+        
         #region Callbacks
 
         private void OnLobbyCreated(LobbyCreated_t callback)
         {
+            // Check if is successfull
             if (callback.m_eResult != EResult.k_EResultOK)
             {
-                Debug.LogError("Failed to create lobby!! get better!");
+                Debug.LogError("Failed to create a lobby! check ur internet!!!!");
                 return;
             }
 
             lobbyId = callback.m_ulSteamIDLobby;
-            Debug.Log($"Lobby Created OK: {lobbyId}");
-            
-            // Network Manager (Mirror shit)
+            Debug.Log($"Created lobby: {lobbyId}");
             _networkManager.StartHost();
-
-            SteamMatchmaking.SetLobbyData(new CSteamID(lobbyId), HostAddressKey, SteamUser.GetSteamID().ToString());
+            SteamMatchmaking.SetLobbyData(new CSteamID(lobbyId), HostAddress, SteamUser.GetSteamID().ToString());
             SteamMatchmaking.SetLobbyData(new CSteamID(lobbyId), "Name", $"{SteamFriends.GetPersonaName()}'s Lobby");
-            
             onLobbyCreated?.Invoke(callback);
         }
+
         
         private void OnLobbyEntered(LobbyEnter_t callback)
         {
             lobbyId = callback.m_ulSteamIDLobby;
+
             if (NetworkServer.active) return;
 
-            string hostAddress = SteamMatchmaking.GetLobbyData(new CSteamID(lobbyId), HostAddressKey);
+            string hostAddress = SteamMatchmaking.GetLobbyData(new CSteamID(lobbyId), HostAddress);
             _networkManager.networkAddress = hostAddress;
             _networkManager.StartClient();
-            
             onLobbyEntered?.Invoke(callback);
         }
-
-        private void OnLobbyJoinRequested(GameLobbyJoinRequested_t callback)
-        {
-            SteamMatchmaking.JoinLobby(callback.m_steamIDLobby);
-        }
-
+        
         #endregion
     }
 }
