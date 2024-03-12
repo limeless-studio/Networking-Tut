@@ -13,7 +13,9 @@ namespace Session_1.Scripts
         private const string HostAddressKey = "HostAddress";
         
         private NetworkManager _networkManager;
-        
+
+        public event Action<LobbyCreated_t> onLobbyCreated;
+        public event Action<LobbyEnter_t> onLobbyEntered;
         
         // Callbacks
         protected Callback<LobbyCreated_t> LobbyCreated;
@@ -77,6 +79,8 @@ namespace Session_1.Scripts
 
             SteamMatchmaking.SetLobbyData(new CSteamID(lobbyId), HostAddressKey, SteamUser.GetSteamID().ToString());
             SteamMatchmaking.SetLobbyData(new CSteamID(lobbyId), "Name", $"{SteamFriends.GetPersonaName()}'s Lobby");
+            
+            onLobbyCreated?.Invoke(callback);
         }
         
         private void OnLobbyEntered(LobbyEnter_t callback)
@@ -87,6 +91,8 @@ namespace Session_1.Scripts
             string hostAddress = SteamMatchmaking.GetLobbyData(new CSteamID(lobbyId), HostAddressKey);
             _networkManager.networkAddress = hostAddress;
             _networkManager.StartClient();
+            
+            onLobbyEntered?.Invoke(callback);
         }
 
         private void OnLobbyJoinRequested(GameLobbyJoinRequested_t callback)
